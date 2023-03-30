@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import databaseContext from './database/startup/databaseContext';
 import bodyParser from 'body-parser';
 import { router } from './router';
+import cors from 'cors';
 
 dotenv.config();
 
@@ -10,6 +11,8 @@ const port = process.env.PORT;
 
 databaseContext.init().then(() => {
     const app: Express = express();
+
+    app.use(cors());
 
     app.use(bodyParser.json());
 
