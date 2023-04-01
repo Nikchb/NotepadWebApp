@@ -7,13 +7,13 @@ import NoteDTO from '../../models/noteDTO';
 import CreateNoteDTO from '../../models/createNoteDTO';
 
 export interface NotesState {
-  notes: NoteListItemDTO[];
-  selectedNote?: NoteDTO;
+  loaded: boolean,
+  notes: NoteListItemDTO[]
 };
 
 const notesState: NotesState = {
-  notes: [],
-  selectedNote: undefined
+  loaded: false,
+  notes: []
 };
 
 export const notesSlice = createSlice({
@@ -22,6 +22,7 @@ export const notesSlice = createSlice({
   reducers: {
     setNotes: (state, action: PayloadAction<NoteListItemDTO[]>) => {
       state.notes = action.payload;
+      state.loaded = true;
     },
     addNote: (state, action: PayloadAction<NoteListItemDTO>) => {
       state.notes.push(action.payload);
@@ -29,24 +30,22 @@ export const notesSlice = createSlice({
     updateNote: (state, action: PayloadAction<NoteDTO>) => {
       const note = state.notes.find(v => v.id === action.payload.id);
       if (note !== undefined) {
-        note.name = action.payload.name;
+        //note.name = action.payload.name;
       } else {
         state.notes.push({ id: action.payload.id, name: action.payload.name });
       }
     },
     deleteNote: (state, action: PayloadAction<number>) => {
-      const index = state.notes.findIndex(v => v.id === action.payload);
-      if (index !== -1) {
-        state.notes.slice(index, 1);
-      }
+      state.notes = state.notes.filter(note => note.id !== action.payload);
     },
-    setSelectedNote: (state, action: PayloadAction<NoteDTO>) => {
-      state.selectedNote = action.payload;
-    },
+    removeNotes: (state) => {
+      state.notes = [];
+      state.loaded = false;
+    }
   },
 });
 
-export const { setNotes, addNote, setSelectedNote, deleteNote } = notesSlice.actions;
+export const { setNotes, addNote, updateNote, deleteNote, removeNotes } = notesSlice.actions;
 
 export const fetchNotesAsync =
   (): AppThunk<Promise<boolean>> =>
@@ -64,18 +63,17 @@ export const fetchNotesAsync =
     };
 
 export const fetchNoteAsync =
-  (id: number): AppThunk<Promise<boolean>> =>
-    async (dispatch): Promise<boolean> => {
+  (id: number): AppThunk<Promise<NoteDTO | undefined>> =>
+    async (): Promise<NoteDTO | undefined> => {
       try {
         const response = (await axios.get(`/notes/${id}`)) as AxiosResponse<ServiceResponse<NoteDTO>>;
         if (response.data.success && response.data.data) {
-          dispatch(setSelectedNote(response.data.data));
-          return true;
+          return response.data.data;
         }
       } catch (e: any) {
         console.error(e.message);
       }
-      return false;
+      return undefined;
     };
 
 export const createNoteAsync =
@@ -100,7 +98,7 @@ export const updateNoteAsync =
       try {
         const response = (await axios.put('/notes', model)) as AxiosResponse<ServiceResponse<undefined>>;
         if (response.data.success) {
-          dispatch(updateNoteAsync(model));
+          dispatch(updateNote(model));
           return true;
         }
       } catch (e: any) {
@@ -126,6 +124,6 @@ export const deleteNoteAsync =
 
 export const notes = (state: RootState) => state.notes.notes;
 
-export const selectedNote = (state: RootState) => state.notes.selectedNote;
+export const loaded = (state: RootState) => state.notes.loaded;
 
 export default notesSlice.reducer;

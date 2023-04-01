@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SignDTO from "../../models/signDTO"
-import { useAppDispatch } from '../../app/hooks';
-import { accept, signInAsync } from '../../app/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { signInAsync, isAuth } from '../../app/slices/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 export function SignIn() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const auth = useAppSelector(isAuth);
+  useEffect(() => {
+    if (auth) {
+      navigate("/notes");
+    }
+  }, [0]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -31,7 +39,7 @@ export function SignIn() {
     const model: SignDTO = { email: email, password: password };
     const isSuccess = await dispatch(signInAsync(model));
     if (isSuccess) {
-
+      navigate('/notes');
     } else {
       setErrorMessage('Invalid login or password');
     }

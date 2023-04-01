@@ -1,7 +1,6 @@
 import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit';
 import auth, { accept, revoke } from './slices/authSlice';
-import notes from './slices/notesSlice';
-import counter from '../components/counter/counterSlice';
+import notes, { removeNotes } from './slices/notesSlice';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import serverURLs from '../configs/serverURLs';
 
@@ -38,7 +37,8 @@ export function setAuthToken(accessToken: string) {
 }
 
 export function removeAuthToken() {
-  store.dispatch(revoke);
+  store.dispatch(revoke());
+  store.dispatch(removeNotes());
   configureAxiosAuthentication('');
   localStorage.removeItem('access_token')
 }

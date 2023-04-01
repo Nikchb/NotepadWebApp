@@ -31,11 +31,10 @@ export const { accept, revoke } = authSlice.actions;
 
 export const signUpAsync =
   (model: SignDTO): AppThunk<Promise<boolean>> =>
-    async (dispatch): Promise<boolean> => {
+    async (): Promise<boolean> => {
       try {
         const response = (await axios.post('/sign-up', model)) as AxiosResponse<ServiceResponse<AuthDTO>>;
         if (response.data.success && response.data.data) {
-          dispatch(accept());
           setAuthToken(response.data.data.token);
           return true;
         }
@@ -48,11 +47,10 @@ export const signUpAsync =
 
 export const signInAsync =
   (model: SignDTO): AppThunk<Promise<boolean>> =>
-    async (dispatch): Promise<boolean> => {
+    async (): Promise<boolean> => {
       try {
         const response = (await axios.post('/sign-in', model)) as AxiosResponse<ServiceResponse<AuthDTO>>;
         if (response.data.success && response.data.data) {
-          dispatch(accept());
           setAuthToken(response.data.data.token);
           return true;
         }
@@ -61,6 +59,13 @@ export const signInAsync =
         console.error(e.message);
       }
       return false;
+    };
+
+export const signOutAsync =
+  (): AppThunk<Promise<void>> =>
+    async (): Promise<void> => {
+      console.log('signOutSlice');
+      removeAuthToken();
     };
 
 export const isAuth = (state: RootState) => state.auth.auth;
