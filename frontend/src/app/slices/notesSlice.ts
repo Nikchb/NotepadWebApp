@@ -30,7 +30,7 @@ export const notesSlice = createSlice({
     updateNote: (state, action: PayloadAction<NoteDTO>) => {
       const note = state.notes.find(v => v.id === action.payload.id);
       if (note !== undefined) {
-        //note.name = action.payload.name;
+        note.name = action.payload.name;
       } else {
         state.notes.push({ id: action.payload.id, name: action.payload.name });
       }
