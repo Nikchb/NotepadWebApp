@@ -1,8 +1,8 @@
 import { Request } from "express";
-import Container from "./container";
+import DIContainer from "./DIContainer.js";
 
 interface DIRequest extends Request {
-  di: Container;
+  di: DIContainer;
 }
 
 export default DIRequest;

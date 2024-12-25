@@ -1,44 +1,42 @@
-import { getConnection } from "../connection";
-import Note from "../models/note";
+import { PoolConnection } from "mysql2/promise";
+import Note from "../models/note.js";
 import { OkPacket, RowDataPacket } from 'mysql2';
 
-export class NoteRepository {
+export interface INoteRepository {
+    getNotes(userId: number): Promise<Note[]>;
+    getNote(noteId: number, userId: number): Promise<Note | undefined>;
+    addNote(note: Note): Promise<number>;
+    updateNote(note: Note): Promise<void>;
+    deleteNote(noteId: number, userId: number): Promise<void>;
+}
+
+export class NoteRepository implements INoteRepository {
+
+    constructor(private connection: PoolConnection) { }
 
     async getNotes(userId: number): Promise<Note[]> {
         const sql = `
             SELECT * FROM Notes
             WHERE userId = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<RowDataPacket[]>(sql, [userId], (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
-                const notes: Note[] = [];
-                results.forEach((v) => {
-                    notes.push({ id: v.id, name: v.name, text: v.text, userId: v.userId });
-                });
-                return resolve(notes);
-            });
+        const [rows] = await this.connection.execute<RowDataPacket[]>(sql, [userId]);
+        const notes: Note[] = [];
+        rows.forEach((v) => {
+            notes.push({ id: v.id, name: v.name, text: v.text, userId: v.userId });
         });
+        return notes;
     }
 
-    async getNote(noteId: number, userId: number): Promise<Note | null> {
+    async getNote(noteId: number, userId: number): Promise<Note | undefined> {
         const sql = `
             SELECT * FROM Notes
             WHERE id = ? AND userId = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<RowDataPacket[]>(sql, [noteId, userId], (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
-                if (results.length === 0) {
-                    return resolve(null);
-                }
-                return resolve({ id: results[0].id, name: results[0].name, text: results[0].text, userId: results[0].userId });
-            });
-        });
+        const [rows] = await this.connection.execute<RowDataPacket[]>(sql, [noteId, userId]);
+        if (rows.length === 0) {
+            throw new Error('Note not found');
+        }
+        return { id: rows[0].id, name: rows[0].name, text: rows[0].text, userId: rows[0].userId };
     }
 
     async addNote(note: Note): Promise<number> {
@@ -46,14 +44,8 @@ export class NoteRepository {
             INSERT INTO Notes (name, text, userId)
             VALUES (?, ?, ?);
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<OkPacket>(sql, [note.name, note.text, note.userId], (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result.insertId);
-            });
-        });
+        const [result] = await this.connection.execute<OkPacket>(sql, [note.name, note.text, note.userId]);
+        return result.insertId;
     }
 
     async updateNote(note: Note): Promise<void> {
@@ -62,14 +54,7 @@ export class NoteRepository {
             SET name = ?, text = ?
             where id = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<OkPacket>(sql, [note.name, note.text, note.id], (error) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve();
-            });
-        });
+        await this.connection.execute<OkPacket>(sql, [note.name, note.text, note.id]);
     }
 
     async deleteNote(noteId: number, userId: number): Promise<void> {
@@ -77,16 +62,6 @@ export class NoteRepository {
             DELETE FROM Notes
             where id = ? AND userId = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<OkPacket>(sql, [noteId, userId], (error) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve();
-            });
-        });
+        await this.connection.execute<OkPacket>(sql, [noteId, userId]);
     }
-
 }
-
-export const noteRepository = new NoteRepository();

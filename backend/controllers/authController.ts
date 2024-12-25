@@ -1,10 +1,18 @@
-import { authService } from "../services/authService";
 import { Request, Response } from 'express';
-import SignDTO from '../dtos/signDTO';
-export class AuthController {
+import SignDTO from '../dtos/signDTO.js';
+import { IAuthService } from '../services/authService.js';
+
+export interface IAuthController {
+    signIn(req: Request, res: Response): Promise<void>;
+    signUp(req: Request, res: Response): Promise<void>;
+}
+
+export class AuthController implements IAuthController {
+
+    constructor(private authService: IAuthService) {}
 
     async signIn(req: Request, res: Response) {
-        const response = await authService.signIn(req.body as SignDTO);
+        const response = await this.authService.signIn(req.body as SignDTO);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -13,7 +21,7 @@ export class AuthController {
     }
 
     async signUp(req: Request, res: Response) {
-        const response = await authService.signUp(req.body as SignDTO);
+        const response = await this.authService.signUp(req.body as SignDTO);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -22,5 +30,3 @@ export class AuthController {
     }
 
 };
-
-export const authController = new AuthController();

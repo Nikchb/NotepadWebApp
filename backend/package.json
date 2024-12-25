@@ -1,6 +1,8 @@
 {
   "name": "notepad-webapp-backend",
   "version": "1.0.0",
+  "type": "module",
+  "module": "ESNext",
   "description": "",
   "main": "index.js",
   "scripts": {

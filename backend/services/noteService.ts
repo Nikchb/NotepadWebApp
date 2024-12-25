@@ -1,13 +1,23 @@
-import { noteRepository } from "../database/repositories/noteRepository";
-import ServiceResponse from "./serviceResponse";
-import CreateNoteDTO from '../dtos/createNoteDTO';
-import NoteDTO from "../dtos/noteDTO";
+import { INoteRepository } from "../database/repositories/noteRepository.js";
+import ServiceResponse from "./serviceResponse.js";
+import CreateNoteDTO from '../dtos/createNoteDTO.js';
+import NoteDTO from "../dtos/noteDTO.js";
 
-export class NoteService {
+export interface INoteService {
+    getNotes(userId: number): Promise<ServiceResponse<NoteDTO[]>>;
+    getNote(noteId: number, userId: number): Promise<ServiceResponse<NoteDTO>>;
+    createNote(model: CreateNoteDTO, userId: number): Promise<ServiceResponse<NoteDTO>>;
+    updateNote(model: NoteDTO, userId: number): Promise<ServiceResponse<NoteDTO>>;
+    deleteNote(noteId: number, userId: number): Promise<ServiceResponse<NoteDTO>>;
+}
+
+export class NoteService implements INoteService {
+
+    constructor(private noteRepository: INoteRepository) { }
 
     async getNotes(userId: number): Promise<ServiceResponse<NoteDTO[]>> {
         try {
-            const notes = await noteRepository.getNotes(userId);
+            const notes = await this.noteRepository.getNotes(userId);
 
             const dtos: NoteDTO[] = [];
             notes.forEach((v) => {
@@ -23,8 +33,8 @@ export class NoteService {
 
     async getNote(noteId: number, userId: number): Promise<ServiceResponse<NoteDTO>> {
         try {
-            const note = await noteRepository.getNote(noteId, userId);
-            if (note === null) {
+            const note = await this.noteRepository.getNote(noteId, userId);
+            if (!note) {
                 throw new Error("Note not found!");
             }
 
@@ -41,7 +51,7 @@ export class NoteService {
                 throw new Error("Invalid note name!");
             }
 
-            const noteId = await noteRepository.addNote({ id: 0, name: model.name, text: model.text, userId: userId });
+            const noteId = await this.noteRepository.addNote({ id: 0, name: model.name, text: model.text, userId: userId });
 
             return { success: true, data: { id: noteId, name: model.name, text: model.text } };
 
@@ -59,15 +69,15 @@ export class NoteService {
                 throw new Error("Invalid note name!");
             }
 
-            const note = await noteRepository.getNote(model.id, userId);
-            if (note === null) {
+            const note = await this.noteRepository.getNote(model.id, userId);
+            if (!note) {
                 throw new Error("Note not found!");
             }
 
             note.name = model.name;
             note.text = model.text;
 
-            await noteRepository.updateNote(note);
+            await this.noteRepository.updateNote(note);
 
             return { success: true };
 
@@ -78,7 +88,7 @@ export class NoteService {
 
     async deleteNote(noteId: number, userId: number): Promise<ServiceResponse<NoteDTO>> {
         try {
-            await noteRepository.deleteNote(noteId, userId);
+            await this.noteRepository.deleteNote(noteId, userId);
 
             return { success: true };
 
@@ -87,6 +97,4 @@ export class NoteService {
         }
     }
 }
-
-export const noteService = new NoteService();
 

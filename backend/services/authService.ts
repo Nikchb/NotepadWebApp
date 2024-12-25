@@ -1,14 +1,21 @@
-import { userRepository } from "../database/repositories/userRepository";
-import SignDTO from '../dtos/signDTO';
-import ServiceResponse from "./serviceResponse";
-import AuthDTO from '../dtos/authDTO';
-import User from "../database/models/user";
+import SignDTO from '../dtos/signDTO.js';
+import ServiceResponse from "./serviceResponse.js";
+import AuthDTO from '../dtos/authDTO.js';
+import User from "../database/models/user.js";
 import bycript from "bcrypt";
 import jwt from "jsonwebtoken";
-import { SECRET_KEY } from '../auth/secretKey';
+import { SECRET_KEY } from '../auth/secretKey.js';
 import AuthPayload from '../auth/authPayload';
+import { IUserRepository } from '../database/repositories/userRepository';
 
-export class AuthService {
+export interface IAuthService {
+    signUp(model: SignDTO): Promise<ServiceResponse<AuthDTO>>;
+    signIn(model: SignDTO): Promise<ServiceResponse<AuthDTO>>;
+}
+
+export class AuthService implements IAuthService {
+
+    constructor(private userRepository: IUserRepository) { }
 
     async signUp(model: SignDTO): Promise<ServiceResponse<AuthDTO>> {
         try {
@@ -19,7 +26,7 @@ export class AuthService {
                 throw new Error("Invalid user password!");
             }
 
-            const checkUser = await userRepository.getUserOrNullByEmail(model.email);
+            const checkUser = await this.userRepository.getUserOrNullByEmail(model.email);
             if (checkUser !== null) {
                 throw new Error("User with the same email is already exist");
             }
@@ -30,7 +37,7 @@ export class AuthService {
                 passwordHash: await bycript.hash(model.password, 10)
             };
 
-            await userRepository.addUser(createUser);
+            await this.userRepository.addUser(createUser);
 
             return await this.signIn(model);
 
@@ -48,8 +55,8 @@ export class AuthService {
                 throw new Error("Invalid user password!");
             }
 
-            const user = await userRepository.getUserOrNullByEmail(model.email);
-            if (user === null) {
+            const user = await this.userRepository.getUserOrNullByEmail(model.email);
+            if (!user) {
                 throw new Error("User not found");
             }
             if (await bycript.compare(model.password, user.passwordHash) === false) {
@@ -66,6 +73,4 @@ export class AuthService {
         }
     }
 }
-
-export const authService = new AuthService();
 

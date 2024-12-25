@@ -1,11 +1,11 @@
 type DIServiceConfig<T> = {
   type: 'singelton' | 'scoped' | 'transient';
-  create: (container: Container) => Promise<T>;
+  create: (container: DIContainer) => Promise<T>;
   dispose?: (instance: T) => Promise<void>;
 }
 
-class Container {
-  public static singelton: Container;
+class DIContainer {
+  public static singelton: DIContainer;
 
   protected serviceConfigs: Map<string, DIServiceConfig<any>>;
 
@@ -21,21 +21,21 @@ class Container {
     this.services = new Map<string, any>();
   }
 
-  public addSingelton<T>(name: string, create: (container: Container) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
+  public addSingelton<T>(name: string, create: (container: DIContainer) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
     this.serviceConfigs.set(name, { create, type: 'singelton', dispose });
-    Container.singelton.serviceConfigs.set(name, { create, type: 'singelton', dispose });
+    DIContainer.singelton.serviceConfigs.set(name, { create, type: 'singelton', dispose });
   }
 
-  public addScoped<T>(name: string, create: (container: Container) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
+  public addScoped<T>(name: string, create: (container: DIContainer) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
     this.serviceConfigs.set(name, { create, type: 'scoped', dispose });
   }
 
-  public addTransient<T>(name: string, create: (container: Container) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
+  public addTransient<T>(name: string, create: (container: DIContainer) => Promise<T>, dispose?: (instance: T) => Promise<void>) {
     this.serviceConfigs.set(name, { create, type: 'transient', dispose });
   }
 
-  public createContainer(): Container {
-    return new Container(this.serviceConfigs);
+  public createContainer(): DIContainer {
+    return new DIContainer(this.serviceConfigs);
   }
 
   public async get<T>(name: string): Promise<T> {
@@ -46,8 +46,8 @@ class Container {
       throw new Error(`Service ${name} not registered`);
     }
     // if service config is singelton and this is not the singelton container, return the singelton container's service
-    if (serviceConfig.type === 'singelton' && this !== Container.singelton) {
-      return Container.singelton.get<T>(name);
+    if (serviceConfig.type === 'singelton' && this !== DIContainer.singelton) {
+      return DIContainer.singelton.get<T>(name);
     }
     // try to get service from services map
     let service = this.services.get(name) as T;
@@ -79,9 +79,9 @@ class Container {
   }
 }
 
-Container.singelton = new Container();
+DIContainer.singelton = new DIContainer();
 
-export default Container;
+export default DIContainer;
 
 
 

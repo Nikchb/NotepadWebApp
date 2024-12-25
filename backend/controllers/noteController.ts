@@ -1,13 +1,23 @@
-import { noteService } from "../services/noteService";
+import { INoteService } from "../services/noteService.js";
 import { Request, Response } from 'express';
-import CustomRequest from '../auth/customRequest';
-import CreateNoteDTO from '../dtos/createNoteDTO';
-import NoteDTO from "../dtos/noteDTO";
+import CustomRequest from '../auth/customRequest.js';
+import CreateNoteDTO from '../dtos/createNoteDTO.js';
+import NoteDTO from "../dtos/noteDTO.js";
 
-export class NoteController {
+export interface INoteController {
+    getNotes(req: Request, res: Response): Promise<void>;
+    getNote(req: Request, res: Response): Promise<void>;
+    createNote(req: Request, res: Response): Promise<void>;
+    updateNote(req: Request, res: Response): Promise<void>;
+    deleteNote(req: Request, res: Response): Promise<void>;
+}
+
+export class NoteController implements INoteController {
+
+    constructor(private noteService: INoteService) { }
 
     async getNotes(req: Request, res: Response) {
-        const response = await noteService.getNotes((req as CustomRequest).payload.userId);
+        const response = await this.noteService.getNotes((req as CustomRequest).payload.userId);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -16,7 +26,7 @@ export class NoteController {
     }
 
     async getNote(req: Request, res: Response) {
-        const response = await noteService.getNote(Number(req.params.noteId), (req as CustomRequest).payload.userId);
+        const response = await this.noteService.getNote(Number(req.params.noteId), (req as CustomRequest).payload.userId);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -25,7 +35,7 @@ export class NoteController {
     }
 
     async createNote(req: Request, res: Response) {
-        const response = await noteService.createNote(req.body as CreateNoteDTO, (req as CustomRequest).payload.userId);
+        const response = await this.noteService.createNote(req.body as CreateNoteDTO, (req as CustomRequest).payload.userId);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -34,7 +44,7 @@ export class NoteController {
     }
 
     async updateNote(req: Request, res: Response) {
-        const response = await noteService.updateNote(req.body as NoteDTO, (req as CustomRequest).payload.userId);
+        const response = await this.noteService.updateNote(req.body as NoteDTO, (req as CustomRequest).payload.userId);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -43,7 +53,7 @@ export class NoteController {
     }
 
     async deleteNote(req: Request, res: Response) {
-        const response = await noteService.deleteNote(Number(req.params.noteId), (req as CustomRequest).payload.userId);
+        const response = await this.noteService.deleteNote(Number(req.params.noteId), (req as CustomRequest).payload.userId);
         if (response.success) {
             res.status(200).json(response);
         } else {
@@ -52,5 +62,3 @@ export class NoteController {
     }
 
 };
-
-export const noteController = new NoteController();

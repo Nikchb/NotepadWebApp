@@ -1,43 +1,41 @@
-import { getConnection } from "../connection";
-import User from "../models/user";
+import { PoolConnection } from "mysql2/promise";
+import User from "../models/user.js";
 import { OkPacket, RowDataPacket } from 'mysql2';
 
-export class UserRepository {
+export interface IUserRepository {
+    getUserOrNull(userId: number): Promise<User | undefined>;
+    getUserOrNullByEmail(email: string): Promise<User | undefined>;
+    addUser(user: User): Promise<number>;
+    updateUser(user: User): Promise<void>;
+    deleteUser(userId: number): Promise<void>;
+}
 
-    async getUserOrNull(userId: number): Promise<User | null> {
+export class UserRepository implements IUserRepository {
+
+    constructor(private connection: PoolConnection) { }
+
+    async getUserOrNull(userId: number): Promise<User | undefined> {
         const sql = `
             SELECT * FROM Users
             WHERE id = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<RowDataPacket[]>(sql, [userId], (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
-                if (results.length === 0) {
-                    return resolve(null);
-                }
-                return resolve({ id: results[0].id, email: results[0].email, passwordHash: results[0].passwordHash });
-            });
-        });
+        const [rows] = await this.connection.execute<RowDataPacket[]>(sql, [userId]);
+        if (rows.length === 0) {
+            return undefined;
+        }
+        return { id: rows[0].id, email: rows[0].email, passwordHash: rows[0].passwordHash };
     }
 
-    async getUserOrNullByEmail(email: string): Promise<User | null> {
+    async getUserOrNullByEmail(email: string): Promise<User | undefined> {
         const sql = `
             SELECT * FROM Users
             WHERE email = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<RowDataPacket[]>(sql, [email], (error, results) => {
-                if (error) {
-                    return reject(error);
-                }
-                if (results.length === 0) {
-                    return resolve(null);
-                }
-                return resolve({ id: results[0].id, email: results[0].email, passwordHash: results[0].passwordHash });
-            });
-        });
+        const [rows] = await this.connection.execute<RowDataPacket[]>(sql, [email]);
+        if (rows.length === 0) {
+            return undefined;
+        }
+        return { id: rows[0].id, email: rows[0].email, passwordHash: rows[0].passwordHash };
     }
 
     async addUser(user: User): Promise<number> {
@@ -45,14 +43,8 @@ export class UserRepository {
             INSERT INTO Users (email, passwordHash)
             VALUES (?, ?);
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query<OkPacket>(sql, [user.email, user.passwordHash], (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result.insertId);
-            });
-        });
+        const [result] = await this.connection.execute<OkPacket>(sql, [user.email, user.passwordHash]);
+        return result.insertId;
     }
 
     async updateUser(user: User): Promise<void> {
@@ -61,14 +53,7 @@ export class UserRepository {
             SET email = ?, passwordHash = ?
             WHERE id = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query(sql, [user.email, user.passwordHash, user.id], (error) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve();
-            });
-        });
+        await this.connection.execute<OkPacket>(sql, [user.email, user.passwordHash, user.id]);
     }
 
     async deleteUser(userId: number): Promise<void> {
@@ -76,15 +61,6 @@ export class UserRepository {
             DELETE FROM Users
             WHERE id = ?;
         `;
-        return await new Promise((resolve, reject) => {
-            getConnection().query(sql, [userId], (error) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve();
-            });
-        });
+        await this.connection.execute<OkPacket>(sql, [userId]);
     }
 }
-
-export const userRepository = new UserRepository();

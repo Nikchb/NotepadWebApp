@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { SECRET_KEY } from '../auth/secretKey';
-import CustomRequest from '../auth/customRequest';
-import AuthPayload from '../auth/authPayload';
+import { SECRET_KEY } from '../auth/secretKey.js';
+import CustomRequest from '../auth/customRequest.js';
+import AuthPayload from '../auth/authPayload.js';
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
     try {

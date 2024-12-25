@@ -1,28 +1,26 @@
-import mysql from "mysql2";
+import mysql, { Pool, Connection, PoolConnection, RowDataPacket } from "mysql2/promise";
 import * as dotenv from "dotenv";
-import Migration from '../models/migration';
-import DatabaseMigration from "./databaseMigration";
-import { migrations } from './migrations';
-import { RowDataPacket } from 'mysql2';
+import Migration from '../models/migration.js';
+import DatabaseMigration from "./databaseMigration.js";
+import { migrations } from './migrations.js';
 dotenv.config();
 
-class DatabaseContext {
+export default class DatabaseContext {
 
-  databaseConnection: mysql.Connection | null;
+  private pool?: Pool;
 
   constructor() {
-    this.databaseConnection = null;
   }
 
-  getDatabaseConnection(): mysql.Connection {
-    if (this.databaseConnection !== null) {
-      return this.databaseConnection;
+  async getDatabaseConnection(): Promise<PoolConnection> {
+    if (!this.pool) {
+      throw new Error("Database connection not established!");
     }
-    throw new Error("Database connection not established!")
+    return await this.pool.getConnection();
   }
 
   async init() {
-    const serverConnection = mysql.createConnection({
+    const serverConnection = await mysql.createConnection({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PWD,
@@ -32,7 +30,7 @@ class DatabaseContext {
     await this.createDatabase(serverConnection);
     serverConnection.destroy();
 
-    this.databaseConnection = mysql.createConnection({
+    this.pool = mysql.createPool({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PWD,
@@ -40,41 +38,30 @@ class DatabaseContext {
       database: process.env.DB_NAME
     });
 
-    await this.createMigrationsTable(this.databaseConnection);
+    const databaseConnection = await this.getDatabaseConnection();
 
-    await this.applyMigrations(this.databaseConnection);
+    await this.createMigrationsTable(databaseConnection);
 
+    await this.applyMigrations(databaseConnection);
+
+    databaseConnection.release();
   }
 
-  async createDatabase(connection: mysql.Connection) {
+  async createDatabase(connection: Connection) {
     const sql = `CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME};`;
-    return await new Promise((resolve, reject) => {
-      connection.query(sql, (error, results) => {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(results);
-      });
-    });
+    await connection.execute(sql, []);
   }
 
-  async createMigrationsTable(connection: mysql.Connection) {
+  async createMigrationsTable(connection: PoolConnection) {
     const sql = `
       CREATE TABLE IF NOT EXISTS Migrations (
         name varchar(255)
       );   
     `;
-    return await new Promise((resolve, reject) => {
-      connection.query(sql, (error, results) => {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(results);
-      });
-    });
+    await connection.execute(sql, []);
   }
 
-  async applyMigrations(connection: mysql.Connection) {
+  async applyMigrations(connection: PoolConnection) {
     const appliedMigrations: Migration[] = await this.getAppliedMigrations(connection);
     migrations.sort((a, b) => {
       const nameA = a.name.toUpperCase();
@@ -96,54 +83,31 @@ class DatabaseContext {
     }
   }
 
-  async applyMigration(connection: mysql.Connection, migration: DatabaseMigration) {
+  async applyMigration(connection: PoolConnection, migration: DatabaseMigration) {
     const sql: any = migration.query;
-    return await new Promise((resolve, reject) => {
-      connection.query(sql, (error, results) => {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(results);
-      });
-    });
+    await connection.execute(sql, []);
   }
 
-  async saveMigrationNameToDatabase(connection: mysql.Connection, migration: DatabaseMigration) {
+  async saveMigrationNameToDatabase(connection: PoolConnection, migration: DatabaseMigration) {
     const sql = `
       INSERT INTO Migrations (name)
       VALUES (?);
   `;
-    return await new Promise((resolve, reject) => {
-      connection.query(sql, [migration.name], (error, results) => {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(results);
-      });
-    });
+    await connection.execute(sql, [migration.name]);
   }
 
-  async getAppliedMigrations(connection: mysql.Connection): Promise<Migration[]> {
+  async getAppliedMigrations(connection: PoolConnection): Promise<Migration[]> {
     const sql = `
       SELECT * FROM Migrations   
     `;
-    return await new Promise((resolve, reject) => {
-      connection.query<RowDataPacket[]>(sql, (error, results) => {
-        if (error) {
-          return reject(error);
-        }
-        const migrations: Migration[] = [];
-        results.forEach((v) => {
-          migrations.push({ name: v.name })
-        });
-        return resolve(migrations);
-      });
+    const [results] = await connection.execute<RowDataPacket[]>(sql, []);
+    const migrations: Migration[] = [];
+    results.forEach((v) => {
+      migrations.push({ name: v.name })
     });
+    return migrations;
   }
-
 }
-
-export default new DatabaseContext();
 
 
 
