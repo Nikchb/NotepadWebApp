@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import DIRequest from "./DIRequest.js";
-import DIContainer from "./DIContainer.js";
+import DIContainer from "ts-dependency-injection-container";
 
 export default function createDIMiddleware(container: DIContainer) {
   return (req: Request, res: Response, next: NextFunction) => {
