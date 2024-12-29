@@ -13,5 +13,5 @@ export default function createDIMiddleware(container: DIContainer) {
       }
     });
     next();
-  }
+  };
 }

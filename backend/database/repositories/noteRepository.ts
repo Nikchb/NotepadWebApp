@@ -21,14 +21,13 @@ export default class NoteRepository implements INoteRepository {
     return notes;
   }
 
-  async getNote(noteId: string, userId: string): Promise<Note | undefined> {
+  async getNote(noteId: string): Promise<Note | undefined> {
     const sql = `
             SELECT * FROM Notes
-            WHERE id = ? AND userId = ?;
+            WHERE id = ?;
         `;
     const [rows] = await this.connection.execute<RowDataPacket[]>(sql, [
       noteId,
-      userId,
     ]);
     if (rows.length === 0) {
       throw new Error("Note not found");
@@ -68,11 +67,11 @@ export default class NoteRepository implements INoteRepository {
     ]);
   }
 
-  async deleteNote(noteId: string, userId: string): Promise<void> {
+  async deleteNote(noteId: string): Promise<void> {
     const sql = `
             DELETE FROM Notes
-            where id = ? AND userId = ?;
+            where id = ?;
         `;
-    await this.connection.execute<OkPacket>(sql, [noteId, userId]);
+    await this.connection.execute<OkPacket>(sql, [noteId]);
   }
 }

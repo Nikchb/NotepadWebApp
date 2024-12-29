@@ -3,24 +3,25 @@ import ServiceResponse from "./serviceResponse.js";
 import CreateNoteDTO from "../dtos/createNoteDTO.js";
 import NoteDTO from "../dtos/noteDTO.js";
 import { v4 as uuidv4 } from "uuid";
+import AuthPayload from "../auth/authPayload.js";
 
 export interface INoteService {
-  getNotes(userId: string): Promise<ServiceResponse<NoteDTO[]>>;
-  getNote(noteId: string, userId: string): Promise<ServiceResponse<NoteDTO>>;
-  createNote(
-    model: CreateNoteDTO,
-    userId: string
-  ): Promise<ServiceResponse<NoteDTO>>;
-  updateNote(model: NoteDTO, userId: string): Promise<ServiceResponse<NoteDTO>>;
-  deleteNote(noteId: string, userId: string): Promise<ServiceResponse<NoteDTO>>;
+  getNotes(): Promise<ServiceResponse<NoteDTO[]>>;
+  getNote(noteId: string): Promise<ServiceResponse<NoteDTO>>;
+  createNote(model: CreateNoteDTO): Promise<ServiceResponse<NoteDTO>>;
+  updateNote(model: NoteDTO): Promise<ServiceResponse<NoteDTO>>;
+  deleteNote(noteId: string): Promise<ServiceResponse<NoteDTO>>;
 }
 
 export class NoteService implements INoteService {
-  constructor(private noteRepository: INoteRepository) {}
+  constructor(
+    private noteRepository: INoteRepository,
+    private authPayload: AuthPayload
+  ) {}
 
-  async getNotes(userId: string): Promise<ServiceResponse<NoteDTO[]>> {
+  async getNotes(): Promise<ServiceResponse<NoteDTO[]>> {
     try {
-      const notes = await this.noteRepository.getNotes(userId);
+      const notes = await this.noteRepository.getNotes(this.authPayload.userId);
 
       const dtos: NoteDTO[] = [];
       notes.forEach((v) => {
@@ -33,13 +34,10 @@ export class NoteService implements INoteService {
     }
   }
 
-  async getNote(
-    noteId: string,
-    userId: string
-  ): Promise<ServiceResponse<NoteDTO>> {
+  async getNote(noteId: string): Promise<ServiceResponse<NoteDTO>> {
     try {
-      const note = await this.noteRepository.getNote(noteId, userId);
-      if (!note) {
+      const note = await this.noteRepository.getNote(noteId);
+      if (!note || note.userId !== this.authPayload.userId) {
         throw new Error("Note not found!");
       }
 
@@ -52,10 +50,7 @@ export class NoteService implements INoteService {
     }
   }
 
-  async createNote(
-    model: CreateNoteDTO,
-    userId: string
-  ): Promise<ServiceResponse<NoteDTO>> {
+  async createNote(model: CreateNoteDTO): Promise<ServiceResponse<NoteDTO>> {
     try {
       if (!model.name) {
         throw new Error("Invalid note name!");
@@ -65,7 +60,7 @@ export class NoteService implements INoteService {
         id: uuidv4(),
         name: model.name,
         text: model.text,
-        userId: userId,
+        userId: this.authPayload.userId,
       });
 
       return {
@@ -77,10 +72,7 @@ export class NoteService implements INoteService {
     }
   }
 
-  async updateNote(
-    model: NoteDTO,
-    userId: string
-  ): Promise<ServiceResponse<NoteDTO>> {
+  async updateNote(model: NoteDTO): Promise<ServiceResponse<NoteDTO>> {
     try {
       if (!model.id) {
         throw new Error("Invalid note id!");
@@ -89,8 +81,8 @@ export class NoteService implements INoteService {
         throw new Error("Invalid note name!");
       }
 
-      const note = await this.noteRepository.getNote(model.id, userId);
-      if (!note) {
+      const note = await this.noteRepository.getNote(model.id);
+      if (!note || note.userId !== this.authPayload.userId) {
         throw new Error("Note not found!");
       }
 
@@ -105,12 +97,14 @@ export class NoteService implements INoteService {
     }
   }
 
-  async deleteNote(
-    noteId: string,
-    userId: string
-  ): Promise<ServiceResponse<NoteDTO>> {
+  async deleteNote(noteId: string): Promise<ServiceResponse<NoteDTO>> {
     try {
-      await this.noteRepository.deleteNote(noteId, userId);
+      const note = await this.noteRepository.getNote(noteId);
+      if (!note || note.userId !== this.authPayload.userId) {
+        throw new Error("Note not found!");
+      }
+
+      await this.noteRepository.deleteNote(noteId);
 
       return { success: true };
     } catch (e: any) {

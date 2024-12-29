@@ -5,7 +5,7 @@ import bodyParser from "body-parser";
 import { router } from "./router.js";
 import cors from "cors";
 import DIContainer from "ts-dependency-injection-container";
-import createDIMiddleware from "./di/DIMiddleware.js";
+import createDIMiddleware from "./middlewares/DIMiddleware.js";
 import INoteRepository from "./database/repositories/INoteRepository.js";
 import NoteRepository from "./database/repositories/noteRepository.js";
 import IUserRepository from "./database/repositories/IUserRepository.js";
@@ -13,6 +13,8 @@ import UserRepository from "./database/repositories/userRepository.js";
 import { PoolConnection } from "mysql2/promise";
 import { INoteService, NoteService } from "./services/noteService.js";
 import { IAuthService, AuthService } from "./services/authService.js";
+import DynamoDBUserRepository from "./database/repositories/DynamoDBUserRepository.js";
+import DynamoDBNoteRepository from "./database/repositories/DynamoDBNoteRepository.js";
 import {
   IAuthController,
   AuthController,
@@ -22,6 +24,7 @@ import {
   NoteController,
 } from "./controllers/noteController.js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import AuthPayload from "./auth/authPayload.js";
 
 dotenv.config();
 
@@ -40,22 +43,10 @@ app.use(bodyParser.json());
 const container = new DIContainer();
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+const AWS_ACCESS_KEY_SECRET = process.env.AWS_ACCESS_KEY_SECRET;
 const AWS_REGION = process.env.AWS_REGION;
 
-container.addScoped<PoolConnection>(
-  "PoolConnection",
-  async (container) => {
-    console.log("creating database connection");
-    return await databaseContext.getDatabaseConnection();
-  },
-  async (connection) => {
-    console.log("releasing database connection");
-    connection.release();
-  }
-);
-
-if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_REGION) {
+if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
   container.addSingelton<DynamoDBClient>(
     "DynamoDBClient",
     async (container) => {
@@ -63,7 +54,7 @@ if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_REGION) {
         region: AWS_REGION,
         credentials: {
           accessKeyId: AWS_ACCESS_KEY_ID,
-          secretAccessKey: AWS_SECRET_ACCESS_KEY,
+          secretAccessKey: AWS_ACCESS_KEY_SECRET,
         },
       });
     },
@@ -71,23 +62,46 @@ if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_REGION) {
       instance.destroy();
     }
   );
+  container.addScoped<INoteRepository>("INoteRepository", async (container) => {
+    return new DynamoDBNoteRepository(
+      await container.get<DynamoDBClient>("DynamoDBClient"),
+      "notewebapp-notes"
+    );
+  });
+  container.addScoped<IUserRepository>("IUserRepository", async (container) => {
+    return new DynamoDBUserRepository(
+      await container.get<DynamoDBClient>("DynamoDBClient"),
+      "notewebapp-users"
+    );
+  });
 } else {
+  container.addScoped<PoolConnection>(
+    "PoolConnection",
+    async (container) => {
+      console.log("creating database connection");
+      return await databaseContext.getDatabaseConnection();
+    },
+    async (connection) => {
+      console.log("releasing database connection");
+      connection.release();
+    }
+  );
   container.addScoped<IUserRepository>("IUserRepository", async (container) => {
     return new UserRepository(
       await container.get<PoolConnection>("PoolConnection")
     );
   });
+  container.addScoped<INoteRepository>("INoteRepository", async (container) => {
+    return new NoteRepository(
+      await container.get<PoolConnection>("PoolConnection")
+    );
+  });
 }
-
-container.addScoped<INoteRepository>("INoteRepository", async (container) => {
-  return new NoteRepository(
-    await container.get<PoolConnection>("PoolConnection")
-  );
-});
 
 container.addScoped<INoteService>("INoteService", async (container) => {
   return new NoteService(
-    await container.get<INoteRepository>("INoteRepository")
+    await container.get<INoteRepository>("INoteRepository"),
+    await container.get<AuthPayload>("AuthPayload")
   );
 });
 
