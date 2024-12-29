@@ -1,6 +1,6 @@
 export default interface Note {
-    id: number,
+    id: string,
     name: string,
     text: string,
-    userId: number
+    userId: string
 }

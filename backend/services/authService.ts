@@ -6,7 +6,8 @@ import bycript from "bcrypt";
 import jwt from "jsonwebtoken";
 import { SECRET_KEY } from '../auth/secretKey.js';
 import AuthPayload from '../auth/authPayload';
-import { IUserRepository } from '../database/repositories/userRepository';
+import IUserRepository from '../database/repositories/IUserRepository.js';
+import { v4 as uuidv4 } from "uuid";
 
 export interface IAuthService {
     signUp(model: SignDTO): Promise<ServiceResponse<AuthDTO>>;
@@ -32,7 +33,7 @@ export class AuthService implements IAuthService {
             }
 
             const createUser: User = {
-                id: 0,
+                id: uuidv4(),
                 email: model.email,
                 passwordHash: await bycript.hash(model.password, 10)
             };
