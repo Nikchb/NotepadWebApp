@@ -26,6 +26,9 @@ import {
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import AuthPayload from "./auth/authPayload.js";
 
+import CustomError from "./models/CustomError.js";
+import createErrorHandlerMiddleware from "./middlewares/ErrorHandlerMiddleware.js";
+
 dotenv.config();
 
 const port = process.env.PORT;
@@ -38,6 +41,20 @@ const app: Express = express();
 app.use(cors());
 
 app.use(bodyParser.json());
+
+const errorHandlerMiddleware = createErrorHandlerMiddleware(
+  async (e, req, res) => {
+    if (e instanceof CustomError || e.httpCode) {
+      res.status(e.httpCode).json({ success: false, message: e.message });
+    } else {
+      res
+        .status(500)
+        .json({ success: false, message: "Internal Server Error" });
+    }
+  }
+);
+
+app.use(errorHandlerMiddleware);
 
 // create DI container
 const container = new DIContainer();
