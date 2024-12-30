@@ -27,8 +27,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import AuthPayload from "./auth/authPayload.js";
 
 import CustomError from "./models/CustomError.js";
-import createErrorHandlerMiddleware from "./middlewares/ErrorHandlerMiddleware.js";
-
+import { ErrorHandlerFunction } from "./types/ErrorHandlerFunction.js";
 dotenv.config();
 
 const port = process.env.PORT;
@@ -42,8 +41,10 @@ app.use(cors());
 
 app.use(bodyParser.json());
 
-const errorHandlerMiddleware = createErrorHandlerMiddleware(
-  async (e, req, res) => {
+const errorHandler: ErrorHandlerFunction = async (res, callback) => {
+  try {
+    await callback();
+  } catch (e: any) {
     if (e instanceof CustomError || e.httpCode) {
       res.status(e.httpCode).json({ success: false, message: e.message });
     } else {
@@ -52,9 +53,7 @@ const errorHandlerMiddleware = createErrorHandlerMiddleware(
         .json({ success: false, message: "Internal Server Error" });
     }
   }
-);
-
-app.use(errorHandlerMiddleware);
+};
 
 // create DI container
 const container = new DIContainer();
@@ -129,11 +128,17 @@ container.addScoped<IAuthService>("IAuthService", async (container) => {
 });
 
 container.addScoped<INoteController>("INoteController", async (container) => {
-  return new NoteController(await container.get<INoteService>("INoteService"));
+  return new NoteController(
+    await container.get<INoteService>("INoteService"),
+    errorHandler
+  );
 });
 
 container.addScoped<IAuthController>("IAuthController", async (container) => {
-  return new AuthController(await container.get<IAuthService>("IAuthService"));
+  return new AuthController(
+    await container.get<IAuthService>("IAuthService"),
+    errorHandler
+  );
 });
 
 app.use(createDIMiddleware(container));

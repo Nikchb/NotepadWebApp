@@ -1,32 +1,28 @@
-import { Request, Response } from 'express';
-import SignDTO from '../dtos/signDTO.js';
-import { IAuthService } from '../services/authService.js';
+import { Request, Response } from "express";
+import SignDTO from "../dtos/signDTO.js";
+import { IAuthService } from "../services/authService.js";
+import { ErrorHandlerFunction } from "../types/ErrorHandlerFunction.js";
 
 export interface IAuthController {
-    signIn(req: Request, res: Response): Promise<void>;
-    signUp(req: Request, res: Response): Promise<void>;
+  signIn(req: Request, res: Response): Promise<void>;
+  signUp(req: Request, res: Response): Promise<void>;
 }
 
 export class AuthController implements IAuthController {
+  constructor(
+    private authService: IAuthService,
+    private errorHandler: ErrorHandlerFunction
+  ) {}
 
-    constructor(private authService: IAuthService) {}
+  async signIn(req: Request, res: Response) {
+    await this.errorHandler(res, async () =>
+      res.status(200).send(await this.authService.signIn(req.body as SignDTO))
+    );
+  }
 
-    async signIn(req: Request, res: Response) {
-        const response = await this.authService.signIn(req.body as SignDTO);
-        if (response.success) {
-            res.status(200).json(response);
-        } else {
-            res.status(400).json(response);
-        }
-    }
-
-    async signUp(req: Request, res: Response) {
-        const response = await this.authService.signUp(req.body as SignDTO);
-        if (response.success) {
-            res.status(200).json(response);
-        } else {
-            res.status(400).json(response);
-        }
-    }
-
-};
+  async signUp(req: Request, res: Response) {
+    await this.errorHandler(res, async () =>
+      res.status(200).send(await this.authService.signUp(req.body as SignDTO))
+    );
+  }
+}

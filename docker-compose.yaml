@@ -13,6 +13,9 @@ services:
     build:
       context: backend
       dockerfile: Dockerfile
+    depends_on:
+      - mysql
+      - redis
     environment:
       NODE_ENV: Production
       PORT: 8000
@@ -21,6 +24,9 @@ services:
       DB_PWD: password
       DB_PORT: 3306
       DB_NAME: notepad_web_app
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: password
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -44,5 +50,16 @@ services:
       - 8081:8080
     restart: unless-stopped
 
+  redis:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass password
+    volumes: 
+      - redis_volume:/data
+
 volumes:
   mysql_volume:
+  redis_volume:
+    driver: local
