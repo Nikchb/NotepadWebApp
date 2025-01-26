@@ -63,6 +63,7 @@ const AWS_ACCESS_KEY_SECRET = process.env.AWS_ACCESS_KEY_SECRET;
 const AWS_REGION = process.env.AWS_REGION;
 
 if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
+  console.log("using dynamodb");
   containerTemplate.addSingelton<DynamoDBClient>(
     "DynamoDBClient",
     async (container) => {
@@ -97,6 +98,7 @@ if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
     }
   );
 } else {
+  console.log("using mysql");
   containerTemplate.addScoped<PoolConnection>(
     "PoolConnection",
     async (container) => {
