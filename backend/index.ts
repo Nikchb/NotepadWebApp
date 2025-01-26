@@ -4,7 +4,7 @@ import DatabaseContext from "./database/startup/databaseContext.js";
 import bodyParser from "body-parser";
 import { router } from "./router.js";
 import cors from "cors";
-import DIContainer from "ts-dependency-injection-container";
+import DIContainerTemplate from "ts-dependency-injection-container";
 import createDIMiddleware from "./middlewares/DIMiddleware.js";
 import INoteRepository from "./database/repositories/INoteRepository.js";
 import NoteRepository from "./database/repositories/noteRepository.js";
@@ -56,14 +56,14 @@ const errorHandler: ErrorHandlerFunction = async (res, callback) => {
 };
 
 // create DI container
-const container = new DIContainer();
+const containerTemplate = new DIContainerTemplate();
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 const AWS_ACCESS_KEY_SECRET = process.env.AWS_ACCESS_KEY_SECRET;
 const AWS_REGION = process.env.AWS_REGION;
 
 if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
-  container.addSingelton<DynamoDBClient>(
+  containerTemplate.addSingelton<DynamoDBClient>(
     "DynamoDBClient",
     async (container) => {
       return new DynamoDBClient({
@@ -78,20 +78,26 @@ if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
       instance.destroy();
     }
   );
-  container.addScoped<INoteRepository>("INoteRepository", async (container) => {
-    return new DynamoDBNoteRepository(
-      await container.get<DynamoDBClient>("DynamoDBClient"),
-      "notewebapp-notes"
-    );
-  });
-  container.addScoped<IUserRepository>("IUserRepository", async (container) => {
-    return new DynamoDBUserRepository(
-      await container.get<DynamoDBClient>("DynamoDBClient"),
-      "notewebapp-users"
-    );
-  });
+  containerTemplate.addScoped<INoteRepository>(
+    "INoteRepository",
+    async (container) => {
+      return new DynamoDBNoteRepository(
+        await container.get<DynamoDBClient>("DynamoDBClient"),
+        "notewebapp-notes"
+      );
+    }
+  );
+  containerTemplate.addScoped<IUserRepository>(
+    "IUserRepository",
+    async (container) => {
+      return new DynamoDBUserRepository(
+        await container.get<DynamoDBClient>("DynamoDBClient"),
+        "notewebapp-users"
+      );
+    }
+  );
 } else {
-  container.addScoped<PoolConnection>(
+  containerTemplate.addScoped<PoolConnection>(
     "PoolConnection",
     async (container) => {
       console.log("creating database connection");
@@ -102,46 +108,58 @@ if (AWS_ACCESS_KEY_ID && AWS_ACCESS_KEY_SECRET && AWS_REGION) {
       connection.release();
     }
   );
-  container.addScoped<IUserRepository>("IUserRepository", async (container) => {
-    return new UserRepository(
-      await container.get<PoolConnection>("PoolConnection")
-    );
-  });
-  container.addScoped<INoteRepository>("INoteRepository", async (container) => {
-    return new NoteRepository(
-      await container.get<PoolConnection>("PoolConnection")
-    );
-  });
+  containerTemplate.addScoped<IUserRepository>(
+    "IUserRepository",
+    async (container) => {
+      return new UserRepository(
+        await container.get<PoolConnection>("PoolConnection")
+      );
+    }
+  );
+  containerTemplate.addScoped<INoteRepository>(
+    "INoteRepository",
+    async (container) => {
+      return new NoteRepository(
+        await container.get<PoolConnection>("PoolConnection")
+      );
+    }
+  );
 }
 
-container.addScoped<INoteService>("INoteService", async (container) => {
+containerTemplate.addScoped<INoteService>("INoteService", async (container) => {
   return new NoteService(
     await container.get<INoteRepository>("INoteRepository"),
     await container.get<AuthPayload>("AuthPayload")
   );
 });
 
-container.addScoped<IAuthService>("IAuthService", async (container) => {
+containerTemplate.addScoped<IAuthService>("IAuthService", async (container) => {
   return new AuthService(
     await container.get<IUserRepository>("IUserRepository")
   );
 });
 
-container.addScoped<INoteController>("INoteController", async (container) => {
-  return new NoteController(
-    await container.get<INoteService>("INoteService"),
-    errorHandler
-  );
-});
+containerTemplate.addScoped<INoteController>(
+  "INoteController",
+  async (container) => {
+    return new NoteController(
+      await container.get<INoteService>("INoteService"),
+      errorHandler
+    );
+  }
+);
 
-container.addScoped<IAuthController>("IAuthController", async (container) => {
-  return new AuthController(
-    await container.get<IAuthService>("IAuthService"),
-    errorHandler
-  );
-});
+containerTemplate.addScoped<IAuthController>(
+  "IAuthController",
+  async (container) => {
+    return new AuthController(
+      await container.get<IAuthService>("IAuthService"),
+      errorHandler
+    );
+  }
+);
 
-app.use(createDIMiddleware(container));
+app.use(createDIMiddleware(containerTemplate));
 
 app.use(router);
 

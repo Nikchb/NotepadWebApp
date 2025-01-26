@@ -1,8 +1,8 @@
 import { Request } from "express";
-import DIContainer from "ts-dependency-injection-container";
+import { IDIContainer } from "ts-dependency-injection-container";
 
 interface DIRequest extends Request {
-  di: DIContainer;
+  di: IDIContainer;
 }
 
 export default DIRequest;

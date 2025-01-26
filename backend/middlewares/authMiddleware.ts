@@ -4,6 +4,7 @@ import { SECRET_KEY } from "../auth/secretKey.js";
 import DIRequest from "./DIRequest.js";
 import AuthPayload from "../auth/authPayload.js";
 import CustomError from "../models/CustomError.js";
+import DIContainerTemplate from "ts-dependency-injection-container";
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -17,7 +18,10 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
 
     const diContainer = (req as DIRequest).di;
 
-    diContainer.addScoped<AuthPayload>("AuthPayload", async () => payload);
+    (diContainer as unknown as DIContainerTemplate).addScoped<AuthPayload>(
+      "AuthPayload",
+      async () => payload
+    );
 
     next();
   } catch (err) {
